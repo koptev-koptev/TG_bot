@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import time
@@ -8,8 +7,6 @@ import requests
 import telegram
 from dotenv import load_dotenv
 from telegram.error import TelegramError
-
-import exceptions as ex
 
 load_dotenv()
 
@@ -63,18 +60,13 @@ def get_api_answer(timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-    except requests.exceptions.RequestException:
-        logger.exception('Не удалось отправить сообщение')
-
-    if response.status_code == HTTPStatus.OK:
-        try:
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error('Формат ответа не json')
-    else:
-        message = 'Нет ответа от эндпоинта'
-        logger.error(message)
-        raise ex.NegativeValueAPI(message)
+        logging.info('Получен ответ от API')
+        if response.status_code != HTTPStatus.OK:
+            raise ConnectionError(f'Неожиданный ответ сервиса'
+                                  f'{response.status_code}')
+        return response.json()
+    except requests.exceptions.RequestException as error:
+        logger.error(f'Ошибка при обращении к API: {error}')
 
 
 def check_response(response):
@@ -83,14 +75,12 @@ def check_response(response):
         message = 'Ответ API не словарь'
         logger.error(message)
         raise TypeError(message)
-
-    if 'homeworks' not in response.keys():
-        logger.error('Ответ не содержит информации о домашних работах')
-        raise TypeError('Ответ сервера не соответствует ожидаемому')
-
+    if 'homeworks' not in response:
+        raise TypeError('Ответ не содержит информации о домашних работах')
+    if 'current_date' not in response:
+        raise TypeError('Ответ не содержит информации о домашних работах')
     if len(response['homeworks']) == 0:
         return []
-
     if type(response['homeworks']) is not list:
         raise TypeError('Содержимое [homeworks] не список')
     homework = response['homeworks']
@@ -131,15 +121,12 @@ def main():
     while True:
         try:
             response = get_api_answer(timestamp=timestamp)
-            homework = check_response(response)
-
-            if homework:
-                message = parse_status(homework[0])
+            homework_list = check_response(response)
+            if homework_list:
+                message = parse_status(homework_list[0])
                 send_message(bot, message)
-
             timestamp = response['current_date']
             time.sleep(RETRY_PERIOD)
-
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logger.error(error)
