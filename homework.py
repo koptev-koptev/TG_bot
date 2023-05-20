@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import json
 from http import HTTPStatus
 
 import requests
@@ -60,11 +61,13 @@ def get_api_answer(timestamp):
     params = {'from_date': timestamp}
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        logging.info('Получен ответ от API')
+        logger.info('Получен ответ от API')
         if response.status_code != HTTPStatus.OK:
             raise ConnectionError(f'Неожиданный ответ сервиса'
                                   f'{response.status_code}')
         return response.json()
+    except json.decoder.JSONDecodeError:
+        logger.error('Формат ответа не json')
     except requests.exceptions.RequestException as error:
         logger.error(f'Ошибка при обращении к API: {error}')
 
@@ -127,6 +130,10 @@ def main():
                 send_message(bot, message)
             timestamp = response['current_date']
             time.sleep(RETRY_PERIOD)
+        except json.decoder.JSONDecodeError:
+            logger.error('Формат ответа не json')
+        except requests.exceptions.RequestException as error:
+            logger.error(f'Ошибка при обращении к API: {error}')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             logger.error(error)
