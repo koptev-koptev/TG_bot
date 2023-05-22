@@ -67,9 +67,9 @@ def get_api_answer(timestamp):
                                   f'{response.status_code}')
         return response.json()
     except json.decoder.JSONDecodeError:
-        logger.error('Формат ответа не json')
+        raise TypeError('Формат ответа не json')
     except requests.exceptions.RequestException as error:
-        logger.error(f'Ошибка при обращении к API: {error}')
+        raise TypeError(f'Ошибка при обращении к API: {error}')
 
 
 def check_response(response):
