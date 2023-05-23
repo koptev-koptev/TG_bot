@@ -75,9 +75,7 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверка ответа от API на корректность."""
     if type(response) is not dict:
-        message = 'Ответ API не словарь'
-        logger.error(message)
-        raise TypeError(message)
+        raise TypeError('Ответ API не словарь')
     if 'homeworks' not in response:
         raise TypeError('Ответ не содержит информации о домашних работах')
     if 'current_date' not in response:
@@ -94,22 +92,15 @@ def parse_status(homework):
     """Извлекает из информации о конкретной."""
     """домашней работе статус этой работы."""
     if 'homework_name' not in homework:
-        logger.error('В ответе API не содержится ключ homework_name.')
         raise KeyError(
-            'В ответе API не содержится ключ homework_name.'
-        )
-
+            'В ответе API не содержится ключ homework_name.')
     if 'status' not in homework:
-        logger.error('В ответе API не содержится ключ status.')
         raise KeyError('В ответе API не содержится ключ status.')
-
     if homework['status'] not in HOMEWORK_VERDICTS:
         raise KeyError('ошибка статуса')
-
     homework_status = homework.get('status')
     homework_name = homework.get('homework_name')
     verdict = HOMEWORK_VERDICTS[homework_status]
-
     message = f'Изменился статус проверки работы "{homework_name}". {verdict}'
     return message
 
@@ -130,6 +121,11 @@ def main():
                 send_message(bot, message)
             timestamp = response['current_date']
             time.sleep(RETRY_PERIOD)
+            if type(response) is not dict:
+                logger.error('Ответ API не словарь')
+            if 'homework_name' and 'status' not in homework_list:
+                logger.error('В ответе API не содержится'
+                             'ключ homework_name или ключ status.')
         except json.decoder.JSONDecodeError:
             logger.error('Формат ответа не json')
         except requests.exceptions.RequestException as error:
